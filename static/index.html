@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TB2 Board Lab — Tension Board 2</title>
+  <link rel="stylesheet" href="style.css?v=28" />
+</head>
+<body>
+  <div id="device-stage" class="device-stage">
+    <div id="app-shell" class="app-shell">
+
+      <!-- CATALOG LOADING OVERLAY (Shown on first run or when switching board/angle) -->
+      <div id="catalog-loading-overlay" class="catalog-loading-overlay" style="display:none;">
+        <div class="clo-card">
+          <div class="clo-spinner"></div>
+          <div id="clo-title" class="clo-title">Loading Tension Board 2 catalog...</div>
+          <div id="clo-sub" class="clo-sub">Preparing holds, angle-adjusted grades &amp; climb metadata</div>
+        </div>
+      </div>
+
+      <!-- MOBILE-ONLY COMPACT TOP BAR (Hidden on Desktop Wall Mode) -->
+      <header class="mobile-top-bar">
+        <div class="brand-logo" onclick="openBoardSetupWizard(1)" title="Switch Tension Board &amp; Angle" style="cursor:pointer;">TB2</div>
+        <div class="active-climb-bar">
+          <button class="nav-step-btn" onclick="stepClimb(-1)" title="Previous Climb">‹</button>
+          <div class="active-climb-info" onclick="switchMobileTab('board')">
+            <span id="mob-hdr-grade" class="grade-pill v0">—</span>
+            <div class="active-climb-text">
+              <div id="mob-hdr-name" class="hdr-climb-name">Loading climb...</div>
+              <div id="mob-hdr-meta" class="hdr-climb-meta">Select a climb</div>
+            </div>
+          </div>
+          <button class="nav-step-btn" onclick="stepClimb(1)" title="Next Climb">›</button>
+        </div>
+        <button class="btn-quick-send" onclick="quickLogSend()" style="padding:0.3125rem 0.5rem; font-size:0.65625rem;">✓</button>
+      </header>
+
+      <!-- ================================================================ -->
+      <!-- DESKTOP THIN FULL-WIDTH TOP NAVIGATION BAR                       -->
+      <!-- ================================================================ -->
+      <header class="desktop-top-navbar" id="desktop-top-navbar">
+        <div class="dtn-left">
+          <div class="brand-logo" onclick="openBoardSetupWizard(1)" title="Change Board &amp; Angle" style="cursor:pointer;">TB2</div>
+          <button id="btn-navbar-board" type="button" class="dtn-board-btn" onclick="openBoardSetupWizard(1)" title="Click to switch Tension Board layout, size, or angle">
+            <span id="navbar-board-label">10×8 Spray</span>
+            <span class="dtn-board-caret">▾</span>
+          </button>
+          <span id="navbar-angle-wrap" class="dtn-angle-wrap">
+            <span id="navbar-angle-pill" class="angle-pill clickable" onclick="openBoardSetupWizard(1)" title="Click to change wall angle">45°</span>
+          </span>
+          <span id="climbs-count-label" class="sidebar-count-pill">0 climbs</span>
+          <span id="demo-mode-pill" class="demo-mode-pill" style="display:none;" title="Static browser demo (10×8 Spray @ 45°). Run locally for Tension 2-way sync, all board sizes/angles &amp; beta videos.">🧪 Live Demo</span>
+        </div>
+        <nav class="dtn-tabs desktop-mode-tabs">
+          <button class="d-tab-btn active" data-dmode="wall" onclick="setWorkspaceMode('wall')">
+            🧗 Wall
+          </button>
+          <button id="tab-btn-compare-left" class="d-tab-btn" data-dmode="compare" onclick="setWorkspaceMode('compare')" title="Review or compare side-by-side beta videos">
+            🎬 Beta (<span id="hdr-beta-cnt">0</span>)
+          </button>
+          <button class="d-tab-btn" data-dmode="lists" onclick="setWorkspaceMode('lists')">
+            📋 Saved Climbs
+          </button>
+          <button class="d-tab-btn" data-dmode="logbook" onclick="setWorkspaceMode('logbook')">
+            📓 Activity Log
+          </button>
+          <button class="d-tab-btn" data-dmode="beta" onclick="setWorkspaceMode('beta')" title="Upload &amp; trim session video or attach Instagram Reel">
+            📤 Upload
+          </button>
+          <button class="d-tab-btn" data-dmode="settings" onclick="setWorkspaceMode('settings')">
+            ⚙️ Settings
+          </button>
+        </nav>
+      </header>
+
+      <!-- ================================================================ -->
+      <!-- MAIN WORKSPACE CONTAINER                                         -->
+      <!-- ================================================================ -->
+      <main id="studio-main" class="studio-main mode-wall">
+
+        <!-- 1. LEFT SIDEBAR ON DESKTOP ('climbs' tab on Mobile) -->
+        <section id="panel-climbs" class="studio-panel panel-climbs">
+
+          <!-- Search, Angle-Adjusted Filters & V-Grade Scroller -->
+          <div class="panel-header">
+            <div class="search-row">
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  id="climb-search-input"
+                  type="search"
+                  name="tb2_climb_filter_query_noautofill"
+                  placeholder="Search climb or @setter..."
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other"
+                />
+                <button id="btn-clear-search" class="btn-clear-search" onclick="clearSearch()" style="display:none;">✕</button>
+              </div>
+              <select id="climb-sort-select" class="sort-select" onchange="updateFilteredClimbs()">
+                <option value="featured" id="opt-sort-featured">Featured &amp; 45° Pop</option>
+                <option value="nearby" id="opt-sort-nearby">Most Ascents (40°–50°)</option>
+                <option value="asc_tgt" id="opt-sort-target">Most Ascents (45° Only)</option>
+                <option value="asctotal">Most Ascents (All Angles)</option>
+                <option value="grade_asc">Grade: Low → High</option>
+                <option value="grade_desc">Grade: High → Low</option>
+                <option value="quality">Highest Quality (★)</option>
+              </select>
+            </div>
+
+            <div id="grade-scroller" class="pill-scroller"></div>
+
+            <!-- Filter Chips: All, Strict Angle, Classics, Has Beta, Sent, Unsent -->
+            <div class="filter-chips-row">
+              <button class="filter-chip active" data-filter="all" id="chip-filter-all" onclick="setQuickFilter('all')">All</button>
+              <button class="filter-chip" data-filter="strict_angle" id="chip-strict-angle" onclick="setQuickFilter('strict_angle')">🎯 Strict 45°</button>
+              <button class="filter-chip" data-filter="classics" id="chip-classics" onclick="setQuickFilter('classics')" title="Official Tension Classics"><span class="c-block cl45">C</span> Classics</button>
+              <button class="filter-chip" data-filter="beta" id="chip-has-beta" onclick="setQuickFilter('beta')">🎬 Has Beta (0)</button>
+              <button class="filter-chip" data-filter="sent" id="chip-sent" onclick="setQuickFilter('sent')">✅ Sent</button>
+              <button class="filter-chip" data-filter="unsent" id="chip-unsent" onclick="setQuickFilter('unsent')">⭕ Unsent</button>
+            </div>
+
+            <!-- Compact Icon Legend for Climb List -->
+            <div class="climb-icon-legend">
+              <span title="Sent by you">✅ Sent</span>
+              <span title="Tried / projecting">⚡ Tried</span>
+              <span title="Has Instagram or uploaded beta video">🎬 Beta</span>
+              <span title="Official Tension Classic"><span class="c-block cl45">C</span> Classic</span>
+              <span id="legend-adj-hint" title="Angle-adjusted grade from neighboring angles">📐 Adj</span>
+            </div>
+
+            <!-- Active List Filter Banner (shown when a List is loaded onto the Wall) -->
+            <div id="list-filter-banner" class="hold-filter-banner list-banner" style="display:none;">
+              <div class="hfb-left">
+                <span class="hfb-title" id="list-filter-title">📋 List</span>
+              </div>
+              <button class="btn-xs-clear" onclick="clearActiveListFilter()">Show All</button>
+            </div>
+
+            <div id="hold-filter-banner" class="hold-filter-banner" style="display:none;">
+              <div class="hfb-left">
+                <span class="hfb-title">🎯 Hold Filter:</span>
+                <div id="hold-filter-pills" class="hfb-pills"></div>
+              </div>
+              <button class="btn-xs-clear" onclick="clearHoldFilters()">Clear</button>
+            </div>
+          </div>
+
+          <div id="climb-list-container" class="climb-list-container"></div>
+        </section>
+
+        <!-- 2. 100vh FULL-HEIGHT BOARD STAGE -->
+        <section id="panel-board" class="studio-panel panel-board active-mobile-tab">
+
+          <!-- Interactive Draft Climb Setter Floating Drawer (Top-Left of Board when setting a draft climb) -->
+          <div id="draft-setter-banner" class="draft-setter-banner" style="display:none;">
+            <div class="dsb-top">
+              <span id="dsb-badge-label" class="dsb-badge">🛠️ DRAFT CLIMB SETTER (10×8 SPRAY @ 45°)</span>
+              <button class="btn-xs-ghost" onclick="toggleDraftSetterMode(false)">✕ Exit</button>
+            </div>
+            <p class="muted-hint">Click any hold on the wall to assign or cycle its role:</p>
+            <div class="dsb-brush-row">
+              <button class="dsb-brush active" data-role="5" onclick="setDraftBrushRole(5)">🟢 Start</button>
+              <button class="dsb-brush" data-role="6" onclick="setDraftBrushRole(6)">🔵 Hand</button>
+              <button class="dsb-brush" data-role="7" onclick="setDraftBrushRole(7)">🔴 Finish</button>
+              <button class="dsb-brush" data-role="8" onclick="setDraftBrushRole(8)">🟣 Foot</button>
+              <button class="dsb-brush" data-role="0" onclick="clearDraftHolds()">🧹 Clear (<span id="draft-hold-cnt">0</span>)</button>
+            </div>
+            <div class="dsb-form-row">
+              <input id="draft-climb-name" type="text" placeholder="Draft climb name (e.g. Pinch Project)..." autocomplete="off" />
+              <select id="draft-climb-grade">
+                <option value="V0">V0</option>
+                <option value="V1">V1</option>
+                <option value="V2" selected>V2</option>
+                <option value="V3">V3</option>
+                <option value="V4">V4</option>
+                <option value="V5">V5</option>
+                <option value="V6">V6</option>
+                <option value="V7">V7</option>
+                <option value="V8">V8</option>
+                <option value="V9">V9</option>
+                <option value="V10">V10</option>
+              </select>
+            </div>
+            <div class="dsb-actions">
+              <label class="dsb-chk"><input id="draft-push-tension" type="checkbox" checked /> Push to Tension App if connected</label>
+              <button class="btn-primary-action" style="padding:0.375rem 0.75rem; font-size:0.71875rem;" onclick="saveNewDraftClimb()">💾 Save to "Draft Climbs"</button>
+            </div>
+          </div>
+
+          <!-- Right Sidebar Dock on Desktop: Active Climb + Detailed Stats + Quick Send/Attempt Logger + Wall Tools -->
+          <div class="board-floating-controls">
+            <!-- 1. Active Climb Summary + Expanded Climb Details -->
+            <div class="right-climb-card">
+              <div class="rcc-header">
+                <span id="hdr-climb-grade" class="grade-pill v0">—</span>
+                <div class="rcc-titles">
+                  <div class="rcc-title-row">
+                    <div id="hdr-climb-name" class="hdr-climb-name">Loading climb...</div>
+                  </div>
+                  <div id="hdr-climb-meta" class="hdr-climb-meta">Select a climb from the list</div>
+                </div>
+              </div>
+
+              <!-- Expanded Specific Climb Details (Quality ★, Classic C, Per-Angle Breakdown, Status) -->
+              <div id="right-climb-details-box" class="right-climb-details-box"></div>
+
+              <!-- Quick Watch Beta & Add to List Row -->
+              <div class="rcc-actions two-cols">
+                <button id="btn-right-watch-beta" class="btn-watch-beta" onclick="setWorkspaceMode('compare')">
+                  🎬 Beta (<span id="right-beta-cnt">0</span>)
+                </button>
+                <button id="btn-add-to-list" class="btn-list-tag" onclick="toggleListTagPopover(event)">
+                  📋 + List
+                </button>
+              </div>
+
+              <!-- Quick-Tag List Popover -->
+              <div id="list-tag-popover" class="list-tag-popover" style="display:none;">
+                <div class="ltp-hdr">
+                  <span>Add / Remove from List</span>
+                  <button class="btn-xs-ghost" onclick="setWorkspaceMode('lists')">All Lists →</button>
+                </div>
+                <div id="list-tag-options" class="ltp-options"></div>
+              </div>
+            </div>
+
+            <!-- 2. Detached Session Logger Card (Send/Attempt + Grade Rating + 1–3 Stars + Notes) -->
+            <div class="right-log-card">
+              <div class="rlc-heading">✍️ Log This Climb</div>
+              <div class="rlc-top-bar">
+                <div class="wql-seg-track">
+                  <button id="btn-wql-sent" type="button" class="wql-type-btn active-sent" onclick="setWallQuickLogStatus('sent', false)" title="Select Send mode">✓ Send</button>
+                  <button id="btn-wql-attempt" type="button" class="wql-type-btn" onclick="setWallQuickLogStatus('attempt', true)" title="Select Attempt mode">⚡ Attempt</button>
+                </div>
+                <div class="wql-tries-stepper" title="Number of tries">
+                  <button type="button" onclick="adjustWallQuickLogTries(-1)">−</button>
+                  <span><b id="wql-tries-val">1</b> try</span>
+                  <button type="button" onclick="adjustWallQuickLogTries(1)">+</button>
+                </div>
+              </div>
+
+              <!-- Row 2 (Send mode only): Personal Grade Rating (Sandbag/Upgrade!) + 1–3 Star Quality -->
+              <div id="wql-rating-row" class="wql-rating-row">
+                <div class="wql-grade-group" title="Rate this climb's personal difficulty">
+                  <div class="wql-grade-stepper">
+                    <button type="button" onclick="adjustWallQuickLogGrade(-1)" title="Rate easier">−</button>
+                    <span id="wql-grade-val" class="wql-grade-val">V2</span>
+                    <button type="button" onclick="adjustWallQuickLogGrade(1)" title="Rate harder">+</button>
+                  </div>
+                  <span id="wql-grade-diff-badge" class="grade-diff-pill" style="display:none;"></span>
+                </div>
+                <div id="wql-stars-picker" class="star-picker" role="radiogroup" aria-label="Quality rating (1 to 3 stars)" title="Quality rating (1–3 stars)">
+                  <button type="button" class="star-btn active" data-star="1" onclick="setWallQuickLogQuality(1)">★</button>
+                  <button type="button" class="star-btn active" data-star="2" onclick="setWallQuickLogQuality(2)">★</button>
+                  <button type="button" class="star-btn" data-star="3" onclick="setWallQuickLogQuality(3)">★</button>
+                </div>
+              </div>
+
+              <textarea
+                id="wql-note-input"
+                class="wql-note-textarea"
+                rows="2"
+                placeholder="Notes or beta cues (optional)..."
+                autocomplete="off"
+                data-lpignore="true"
+              ></textarea>
+              <button id="btn-wql-submit" type="button" class="btn-wql-submit mode-sent wql-full-btn" onclick="submitWallQuickLog()">+ Log Send</button>
+            </div>
+
+            <!-- 3. Right Sidebar Bottom Stack: Wall Tools (Hold Filter & Set Draft) + Hold Zoom Inspector -->
+            <div class="right-bottom-stack">
+              <div class="right-tools-card">
+                <div class="board-tools-stack">
+                  <button id="btn-hold-search-mode" class="tool-pill-btn" onclick="toggleHoldFilterMode()">
+                    🎯 Hold Filter: <span id="hold-search-state-txt">OFF</span>
+                  </button>
+                  <button id="btn-draft-setter-mode" class="tool-pill-btn setter-btn" onclick="toggleDraftSetterMode()" style="margin-top:0;">
+                    🛠️ Set Draft
+                  </button>
+                </div>
+              </div>
+              <div id="active-hold-Inspector" class="hold-zoom-popover"></div>
+            </div>
+          </div>
+
+          <!-- Pure 100vh Full-Height Multi-Board Canvas -->
+          <div class="board-stage-wrap" id="board-stage-wrap">
+            <div class="axis-top" id="axis-top-letters"></div>
+
+            <div class="board-middle-row">
+              <div class="axis-side" id="axis-side-left"></div>
+
+              <div id="board-viewport" class="board-viewport">
+                <div id="board-layers" class="board-layers"></div>
+                <img id="board-bg-img" class="board-bg-img" src="" alt="Tension Board 2 Wall" style="display:none;" />
+                <svg id="board-overlay-svg" class="board-overlay-svg" viewBox="0 0 1080 1440" preserveAspectRatio="none"></svg>
+              </div>
+
+              <div class="axis-side" id="axis-side-right"></div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- 3. DEDICATED SAVED CLIMBS (LISTS & CIRCUITS) TAB -->
+        <section id="panel-lists" class="studio-panel panel-full-page">
+          <div class="lists-page-header">
+            <div class="lph-left">
+              <h2>📋 Saved Climbs, Circuits &amp; Drafts (<code id="lists-user-lbl" style="color:#7dd3fc;">@me</code>)</h2>
+              <p id="lists-page-sub" class="muted-hint">Synced directly from your Tension Board 2 profile — toggle between your active board climbs &amp; drafts vs. all board crops/layouts.</p>
+            </div>
+            <div class="lph-actions">
+              <div class="layout-scope-toggle" role="group" aria-label="Lists Board Scope">
+                <button id="lists-scope-active" class="scope-toggle-btn active" onclick="setListsLayoutScope('active')">🎯 Just 10×8 Spray</button>
+                <button id="lists-scope-all" class="scope-toggle-btn" onclick="setListsLayoutScope('all')">🌐 All Board Crops / Layouts</button>
+              </div>
+              <button class="btn-primary-action" style="flex:0 0 auto;" onclick="startDraftClimbFromLists()">
+                🛠️ Set New Draft Climb
+              </button>
+              <button class="btn-secondary-action" onclick="triggerAuroraPullSync()">
+                🔄 Sync Circuits
+              </button>
+            </div>
+          </div>
+
+          <!-- Create Custom List Bar -->
+          <div class="create-list-bar">
+            <input id="new-list-icon" type="text" value="📌" maxlength="4" style="width:3rem; text-align:center;" title="Icon" autocomplete="off" />
+            <input id="new-list-name" type="text" placeholder="Create a new list (e.g. Warmup Circuit, Power Endurance, Crimpy Projects)..." style="flex:1;" autocomplete="off" />
+            <input id="new-list-desc" type="text" placeholder="Short description (optional)..." style="flex:1;" autocomplete="off" />
+            <button class="btn-secondary-action" onclick="createNewClimbList()">+ Create List</button>
+          </div>
+
+          <!-- Grid of List Cards -->
+          <div id="lists-cards-grid" class="lists-cards-grid"></div>
+        </section>
+
+        <!-- 4. SEPARATE UPLOAD CLIP & AUTO-CROPPER PAGE ('beta') -->
+        <section id="panel-beta" class="studio-panel panel-full-page">
+          <div class="lists-page-header">
+            <div class="lph-left">
+              <h2>📤 Upload Clip &amp; Attach Beta — <span id="beta-climb-title" style="color:#38bdf8;">Select a climb</span></h2>
+              <p class="muted-hint">Upload &amp; auto-crop your raw session video, attach an Instagram Reel link, or generate an Aurora-compatible Instagram caption.</p>
+            </div>
+            <div class="lph-actions">
+              <button class="btn-primary-action" style="flex:0 0 auto;" onclick="setWorkspaceMode('compare')">
+                🎬 Open in Review / Compare Beta →
+              </button>
+            </div>
+          </div>
+
+          <div class="beta-split-grid">
+            <!-- Left: Session Video Trimmer & Save to Climb Beta -->
+            <div class="beta-col-autocrop">
+              <div class="section-card">
+                <div class="ac-header">
+                  <h3>✂️ 1. Upload &amp; Trim Session Video</h3>
+                  <p>Drop a raw phone video from your session, trim the start and end times with <code>ffmpeg</code>, and save the clip directly to this climb's Beta viewer.</p>
+                </div>
+
+                <div class="upload-dropzone" onclick="document.getElementById('video-file-input').click()">
+                  <input id="video-file-input" type="file" accept="video/*" style="display:none;" onchange="handleVideoUpload(event)" />
+                  <div class="dz-icon">📹</div>
+                  <div class="dz-text">
+                    <strong>Drop or Tap to Upload Raw Session Video (.mp4 / .mov)</strong>
+                    <span>Trim start/end timestamps locally with ffmpeg</span>
+                  </div>
+                </div>
+
+                <div class="trimmer-box">
+                  <div class="trimmer-title-row">
+                    <span>✂️ Clip Trim Window</span>
+                    <span id="trim-window-badge" class="trim-badge">Upload a video to set trim window</span>
+                  </div>
+                  <div class="trim-sliders-row">
+                    <label>Start: <b id="lbl-trim-start">0.0s</b>
+                      <input id="slider-trim-start" type="range" min="0" max="15.0" step="0.1" value="0.0" oninput="onTrimSliderChange()" />
+                    </label>
+                    <label>End: <b id="lbl-trim-end">10.0s</b>
+                      <input id="slider-trim-end" type="range" min="0" max="15.0" step="0.1" value="10.0" oninput="onTrimSliderChange()" />
+                    </label>
+                  </div>
+                  <div class="trim-actions-row">
+                    <button class="btn-primary-action" onclick="runBackendAutoCrop(true)">
+                      ✂️ Trim &amp; Save to Climb Beta
+                    </button>
+                    <button class="btn-secondary-action" onclick="setWorkspaceMode('compare')">
+                      🎬 Review / Compare Beta →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Attach Instagram Reel URL + Aurora IG Caption Formatter -->
+            <div class="beta-col-reels">
+              <div class="section-card">
+                <h3>🔗 2. Attach Instagram Reel URL to This Climb</h3>
+                <p class="muted-hint">Paste any public Instagram <code>/reel/...</code> link — our backend extracts the clean MP4 stream so it plays natively inside <b>🎬 Beta</b> with zero Instagram clutter.</p>
+                <input id="input-beta-url" type="url" placeholder="https://www.instagram.com/reel/..." autocomplete="off" />
+                <div class="form-row-2">
+                  <input id="input-beta-climber" type="text" placeholder="Climber (e.g. @your_handle)" value="" autocomplete="off" />
+                  <input id="input-beta-title" type="text" placeholder="Label (e.g. Send Reel)" autocomplete="off" />
+                </div>
+                <textarea id="input-beta-notes" rows="2" placeholder="Optional beta notes..."></textarea>
+                <div style="display:flex; gap:0.5rem;">
+                  <button class="btn-primary-action" onclick="submitNewBetaLink()">+ Attach Instagram Reel &amp; Open Player</button>
+                </div>
+              </div>
+
+              <div class="section-card">
+                <div class="ig-export-card" style="margin-top:0;">
+                  <div class="ig-export-hdr">
+                    <span class="ig-badge">📸 3. Official Aurora / Tension Scraper Caption</span>
+                    <span class="ig-rule-hint">Matches Tension's auto-sync filter</span>
+                  </div>
+                  <textarea id="ig-caption-box" class="ig-caption-box" rows="3" readonly></textarea>
+                  <div class="ig-checklist">
+                    <span>✓ Exact Climb Name in Quotes</span>
+                    <span>✓ <code id="ig-angle-check-code">@ 45° on the Tension Board.</code></span>
+                    <span>✓ <code>@tensionclimbing #tensionboard</code></span>
+                  </div>
+                  <div class="ig-export-btns">
+                    <button class="btn-ig-copy" onclick="copyIgCaption()">📋 Copy IG Caption</button>
+                    <a id="link-download-cropped" class="btn-ig-download" href="#" download="climb_cropped.mp4" style="display:none;">
+                      ⬇️ Download Cropped MP4
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. UNIFIED REVIEW / COMPARE BETA TAB -->
+        <section id="panel-compare" class="studio-panel panel-full-page">
+          <div class="compare-full-header">
+            <div class="cfh-left">
+              <h3>🎬 Review / Compare Beta — <span id="cmp-climb-title">Select a climb</span></h3>
+              <p class="muted-hint">Plays Instagram Reels &amp; your uploaded clips directly in-tab as clean full-width MP4 video, with side-by-side comparison and ghost overlay.</p>
+            </div>
+            <div class="compare-layout-btns">
+              <button class="cmp-mode-btn active" data-cmpmode="single" onclick="setCompareLayout('single')">▢ 1 Video (Review)</button>
+              <button class="cmp-mode-btn" data-cmpmode="sbs" onclick="setCompareLayout('sbs')">◫ 2 Videos (Side-by-Side)</button>
+              <button class="cmp-mode-btn" data-cmpmode="overlay" onclick="setCompareLayout('overlay')">🌗 50% Ghost Overlay</button>
+            </div>
+          </div>
+
+          <div id="compare-selectors-grid" class="compare-selectors-grid">
+            <div class="cmp-select-box">
+              <div class="cmp-box-top">
+                <label class="cmp-label badge-a">VIDEO A (PRIMARY / INSTAGRAM OR UPLOAD)</label>
+                <div style="display:flex; gap:0.375rem;">
+                  <button class="btn-xs-ghost" onclick="setWorkspaceMode('beta')">📤 + Upload / Link</button>
+                  <button class="btn-xs-ghost" onclick="document.getElementById('file-cmp-a').click()">📂 Local MP4</button>
+                </div>
+                <input id="file-cmp-a" type="file" accept="video/*" style="display:none;" onchange="loadLocalCompareFile('a', event)" />
+              </div>
+              <select id="select-video-a" onchange="onSelectCompareVideo('a')"></select>
+            </div>
+            <div id="cmp-select-box-b" class="cmp-select-box" style="display:none;">
+              <div class="cmp-box-top">
+                <label class="cmp-label badge-b">VIDEO B (SIDE-BY-SIDE COMPARE)</label>
+                <button class="btn-xs-ghost" onclick="document.getElementById('file-cmp-b').click()">📂 Local MP4</button>
+                <input id="file-cmp-b" type="file" accept="video/*" style="display:none;" onchange="loadLocalCompareFile('b', event)" />
+              </div>
+              <select id="select-video-b" onchange="onSelectCompareVideo('b')"></select>
+            </div>
+          </div>
+
+          <!-- Clean Borderless Native Video Stage -->
+          <div id="compare-stage" class="compare-stage mode-single">
+            <div class="video-slot slot-a" id="slot-video-a">
+              <div class="video-slot-tag tag-a" id="tag-video-a">Video A</div>
+              <video id="video-player-a" src="" controls playsinline muted loop preload="metadata"></video>
+              <div class="video-time-pill" id="time-pill-a">0.00s</div>
+            </div>
+            <div class="video-slot slot-b" id="slot-video-b" style="display:none;">
+              <div class="video-slot-tag tag-b" id="tag-video-b">Video B</div>
+              <video id="video-player-b" src="" controls playsinline muted loop preload="metadata"></video>
+              <div class="video-time-pill" id="time-pill-b">0.00s</div>
+            </div>
+          </div>
+
+          <div id="overlay-alpha-row" class="sync-offset-row" style="display:none;">
+            <span>Video B Ghost Opacity: <b id="overlay-alpha-val">50%</b></span>
+            <input id="overlay-alpha-slider" type="range" min="10" max="90" value="50" oninput="updateOverlayAlpha(this.value)" />
+          </div>
+
+          <div class="compare-bottom-dock">
+            <div class="transport-bar">
+              <button class="trans-btn" onclick="stepFrames(-5)">-5f</button>
+              <button class="trans-btn" onclick="stepFrames(-1)">-1f</button>
+              <button id="btn-sync-play" class="trans-btn primary-play" onclick="toggleSyncPlay()">▶ Play Sync</button>
+              <button class="trans-btn" onclick="stepFrames(1)">+1f</button>
+              <button class="trans-btn" onclick="stepFrames(5)">+5f</button>
+              <button class="trans-btn" onclick="restartSyncVideos()">↺</button>
+            </div>
+
+            <div class="scrubber-card">
+              <div class="scrubber-row">
+                <span class="scrubber-lbl">Timeline</span>
+                <input id="sync-scrubber" type="range" min="0" max="16.0" step="0.05" value="0" oninput="scrubSyncVideos(this.value)" />
+                <span id="sync-time-readout" class="scrubber-val">0.0s / 16.0s</span>
+              </div>
+              <div class="speed-offset-grid">
+                <div class="speed-pills">
+                  <span>Speed:</span>
+                  <button class="spd-btn" data-spd="0.25" onclick="setPlaybackSpeed(0.25)">0.25×</button>
+                  <button class="spd-btn" data-spd="0.5" onclick="setPlaybackSpeed(0.5)">0.5×</button>
+                  <button class="spd-btn active" data-spd="1" onclick="setPlaybackSpeed(1.0)">1×</button>
+                </div>
+                <div class="offset-control" id="sync-offset-ctrl-box">
+                  <span id="sync-raw-slider-wrap" style="display:inline-flex; align-items:center; gap:0.375rem;">
+                    <span>Video B Offset Δt: <b id="sync-dt-val">+0.0s</b></span>
+                    <input id="sync-dt-slider" type="range" min="-8.0" max="8.0" step="0.1" value="0" oninput="updateSyncOffset(this.value)" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. PERSONAL LOGBOOK, WEEKLY LOAD, WATCHLIST & LEADERBOARDS -->
+        <section id="panel-logbook" class="studio-panel panel-full-page">
+          <!-- Top Bar: 2-Way Tension App Compatibility & Board Scope Toggle -->
+          <div class="aurora-sync-banner">
+            <div class="asb-left">
+              <span class="asb-icon">🔄</span>
+              <div>
+                <div class="asb-title">
+                  2-Way Official Tension App Sync (<code style="color:#7dd3fc;">tensionboardapp2.com</code>)
+                  <span id="aurora-conn-pill" class="conn-pill">Ready to Connect</span>
+                </div>
+                <div id="aurora-banner-sub" class="asb-sub">
+                  Toggle between your active board sessions vs. your full Tension Board 2 history across all board crops/layouts.
+                </div>
+              </div>
+            </div>
+            <div class="asb-actions">
+              <div class="layout-scope-toggle" role="group" aria-label="Activity Board Scope">
+                <button id="activity-scope-active" class="scope-toggle-btn active" onclick="setActivityLayoutScope('active')">🎯 Just 10×8 Spray</button>
+                <button id="activity-scope-all" class="scope-toggle-btn" onclick="setActivityLayoutScope('all')">🌐 All Board Crops / Layouts</button>
+              </div>
+              <button class="btn-secondary-action" style="padding:0.4375rem 0.75rem; font-size:0.71875rem;" onclick="triggerAuroraPullSync()">
+                🔄 Sync Now
+              </button>
+              <button class="btn-primary-action" style="padding:0.4375rem 0.875rem; font-size:0.71875rem; flex:0 0 auto;" onclick="openAuroraSyncModal()">
+                🔗 Manage Accounts
+              </button>
+            </div>
+          </div>
+
+          <!-- Large Climber Selector Bar -->
+          <div class="watchlist-bar">
+            <div class="wl-top-row">
+              <div id="watchlist-pills-container" class="watchlist-cards-row"></div>
+              <div class="wl-add-form">
+                <input id="input-watch-user" type="text" placeholder="Add @climber..." autocomplete="off" />
+                <button class="btn-xs-ghost" onclick="addWatchlistClimber()">+ Track</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Full-Width Single-Column Stack: 1) Load -> 2) Dual Grade Pyramid -> 3) Logbook / Activity -> 4) Leaderboard -->
+          <div class="activity-fullwidth-stack">
+
+            <!-- 1. FULL-WIDTH WEEKLY CLIMBING LOAD & INJURY GUARDRAIL -->
+            <div class="section-card load-chart-card">
+              <div class="sc-hdr">
+                <div>
+                  <h3 id="load-chart-title">⚡ 1. Weekly Climbing Load &amp; Injury Guardrail (10×8 Spray @ 45°)</h3>
+                  <p class="muted-hint">
+                    Every attempt counts equally whether sent or projecting: <code>Load = Tries × (V_grade + 1)</code> (<code>V0 = 1 pt/try</code>, <code>V1 = 2 pts/try</code>, <code>V2 = 3 pts/try</code>) so multi-try projecting is naturally weighted.
+                  </p>
+                </div>
+                <div class="load-mode-pills">
+                  <button id="btn-load-pts" class="filter-chip active" onclick="setLoadChartMetric('points')">Load Pts</button>
+                  <button id="btn-load-tries" class="filter-chip" onclick="setLoadChartMetric('tries')">Tries</button>
+                </div>
+              </div>
+
+              <div id="acwr-status-banner" class="acwr-banner sweet-spot"></div>
+
+              <div id="weekly-load-chart" class="weekly-load-chart"></div>
+
+              <div class="load-zone-legend">
+                <span><i class="zone-dot z-v0"></i> V0–V1 Warmup (1–2 pts/try)</span>
+                <span><i class="zone-dot z-v2"></i> V2–V3 Volume (3–4 pts/try)</span>
+                <span><i class="zone-dot z-v4"></i> V4–V5 Strength (5–6 pts/try)</span>
+                <span><i class="zone-dot z-v6"></i> V6+ Limit (7+ pts/try)</span>
+              </div>
+            </div>
+
+            <!-- 2. FULL-WIDTH DUAL GRADE PYRAMIDS -->
+            <div class="section-card">
+              <div class="sc-hdr">
+                <div>
+                  <h3>📊 2. <span id="pyr-board-title">10×8 Spray</span> Grade Pyramid — <span id="pyr-climber-lbl" style="color:#38bdf8;">@me</span></h3>
+                  <p id="pyr-board-sub" class="muted-hint">Click any V-grade bar on either graph to filter the wall to that grade.</p>
+                </div>
+                <div class="load-mode-pills">
+                  <button id="btn-pyr-min1" class="filter-chip active" onclick="setPyramidMinAscents(1)">≥1 Ascent</button>
+                  <button id="btn-pyr-min5" class="filter-chip" onclick="setPyramidMinAscents(5)">🔥 5+ Ascents</button>
+                </div>
+              </div>
+
+              <div class="pyramid-dual-grid">
+                <!-- Graph A: Just Climber's Sends -->
+                <div class="pyramid-subcard">
+                  <div class="psub-hdr">
+                    <strong>🏆 Just <span id="pyr-mine-user">@me</span>'s Sends</strong>
+                    <span id="pyr-mine-total-lbl" class="psub-badge">0 sends</span>
+                  </div>
+                  <p id="pyr-mine-sub-lbl" class="muted-hint">Scaled to your own sends per V-grade on this board.</p>
+                  <div id="grade-pyramid-mine" class="grade-pyramid-bars"></div>
+                </div>
+
+                <!-- Graph B: Catalog Coverage -->
+                <div class="pyramid-subcard">
+                  <div class="psub-hdr">
+                    <strong id="pyr-cat-title-lbl">🌐 Catalog Coverage</strong>
+                    <span id="pyr-cat-total-lbl" class="psub-badge">0 / 0 climbs</span>
+                  </div>
+                  <p id="pyr-cat-sub-lbl" class="muted-hint">Excludes 0-send climbs — shows how many you've done out of climbs with ≥1 ascent.</p>
+                  <div id="grade-pyramid-bars" class="grade-pyramid-bars"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. FULL-WIDTH LOGBOOK & SESSION ACTIVITY -->
+            <div class="section-card">
+              <div id="selected-climber-header" class="selected-climber-header"></div>
+
+              <!-- Quick Log Form -->
+              <div id="quick-log-box" class="quick-log-box">
+                <div class="log-form-hdr">
+                  <h4>✍️ Log Session on <span id="log-climb-name-lbl" style="color:#38bdf8;">Select a climb</span> <span id="log-board-angle-lbl">(45° on 10×8 Spray)</span></h4>
+                  <span id="log-climb-grade-lbl" class="grade-pill v0">—</span>
+                </div>
+                <div class="log-controls-row">
+                  <div class="status-toggle-group">
+                    <button id="btn-status-sent" class="status-btn active" onclick="setLogFormStatus('sent')">✓ Sent</button>
+                    <button id="btn-status-attempt" class="status-btn" onclick="setLogFormStatus('attempt')">⚡ Projecting</button>
+                  </div>
+                  <div class="attempts-stepper">
+                    <span>Tries:</span>
+                    <button onclick="adjustLogAttempts(-1)">−</button>
+                    <b id="log-attempts-val">1</b>
+                    <button onclick="adjustLogAttempts(1)">+</button>
+                  </div>
+                  <div class="attempts-stepper">
+                    <span>Date:</span>
+                    <input id="log-date-input" type="date" style="width:8rem; padding:0.25rem 0.375rem; font-size:0.71875rem;" />
+                  </div>
+                </div>
+
+                <!-- Grade Rating + 1–3 Star Quality (shown when Sent) -->
+                <div id="log-rating-row" class="log-rating-row">
+                  <div class="attempts-stepper">
+                    <span>Your Grade:</span>
+                    <button type="button" onclick="adjustLogFormGrade(-1)">−</button>
+                    <b id="log-rated-grade-val" style="min-width:2.125rem; text-align:center;">V2</b>
+                    <button type="button" onclick="adjustLogFormGrade(1)">+</button>
+                    <span id="log-grade-diff-badge" class="grade-diff-pill" style="display:none;"></span>
+                  </div>
+                  <div class="attempts-stepper">
+                    <span>Quality:</span>
+                    <div id="log-stars-picker" class="star-picker" role="radiogroup" aria-label="Quality rating (1 to 3 stars)">
+                      <button type="button" class="star-btn active" data-star="1" onclick="setLogFormQuality(1)">★</button>
+                      <button type="button" class="star-btn active" data-star="2" onclick="setLogFormQuality(2)">★</button>
+                      <button type="button" class="star-btn" data-star="3" onclick="setLogFormQuality(3)">★</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="log-notes-row">
+                  <input id="log-notes-input" type="text" placeholder="Session notes (e.g. felt solid keeping feet on)..." autocomplete="off" />
+                </div>
+                <div class="log-submit-row">
+                  <label class="dsb-chk">
+                    <input id="chk-push-tension" type="checkbox" checked />
+                    <span>Push to Official Tension App (<code id="lbl-log-climber">@me</code>)</span>
+                  </label>
+                  <button class="btn-primary-action" style="flex:0 0 auto; padding:0.5rem 1rem;" onclick="submitLogEntry()">
+                    ✓ Save to Logbook
+                  </button>
+                </div>
+              </div>
+
+              <div id="logbook-stats-grid" class="logbook-stats-grid"></div>
+              <div id="logbook-entries-list" class="logbook-entries-list"></div>
+            </div>
+
+            <!-- 4. FULL-WIDTH LEADERBOARDS -->
+            <div class="section-card">
+              <div class="sc-hdr">
+                <div>
+                  <h3 id="lb-board-title">🏆 4. Board Leaderboards</h3>
+                  <p id="lb-board-sub" class="muted-hint">Scoped strictly to your active board layout &amp; angle window. Click any climber to inspect their profile.</p>
+                </div>
+              </div>
+
+              <div class="lb-tabs-row">
+                <button class="lb-tab-btn active" data-lbtab="crew" onclick="setLeaderboardTab('crew')">👥 Crew &amp; Watchlist</button>
+                <button class="lb-tab-btn" data-lbtab="fa" id="lb-tab-fa" onclick="setLeaderboardTab('fa')">⚡ Top FAs</button>
+                <button class="lb-tab-btn" data-lbtab="beta" id="lb-tab-beta" onclick="setLeaderboardTab('beta')">🎬 Top Beta</button>
+                <button class="lb-tab-btn" data-lbtab="setters" onclick="setLeaderboardTab('setters')">🛠️ Top Setters</button>
+              </div>
+
+              <div id="leaderboard-table-wrap" class="leaderboard-table-wrap"></div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 7. DEDICATED SETTINGS TAB -->
+        <section id="panel-settings" class="studio-panel panel-full-page">
+          <div class="lists-page-header">
+            <div class="lph-left">
+              <h2>⚙️ Board Display, Sync &amp; App Settings</h2>
+              <p id="settings-page-sub" class="muted-hint">Configure your Tension Board 2 size, wall angle, background render, hold overlays, and 2-way sync.</p>
+            </div>
+            <div class="lph-actions">
+              <button class="btn-primary-action" style="flex:0 0 auto;" onclick="openBoardSetupWizard(1)">
+                🏗️ Change Board &amp; Angle
+              </button>
+            </div>
+          </div>
+
+          <div class="lists-cards-grid">
+            <!-- Card 1: Active Board & Background Mode -->
+            <div class="section-card">
+              <h3>🎨 1. Board &amp; Background Display</h3>
+              <div id="settings-active-board-summary" class="settings-board-summary">
+                <div>
+                  <strong id="settings-board-lbl">10×8 Spray @ 45°</strong>
+                  <div id="settings-board-mode-lbl" class="muted-hint">Fixed angle wall</div>
+                </div>
+                <button class="btn-secondary-action" onclick="openBoardSetupWizard(1)">🏗️ Change Board &amp; Angle</button>
+              </div>
+
+              <p class="muted-hint" style="margin-top:0.375rem;">Choose the wall visual style rendered behind the SVG hold outlines:</p>
+              <div id="settings-bg-grid" class="view-mode-group settings-bg-grid" role="tablist">
+                <button id="btn-view-render" class="view-btn active" data-view="render" onclick="setBoardView('render')">🎨 3D Render</button>
+                <button id="btn-view-official" class="view-btn" data-view="official" onclick="setBoardView('official')">🗺️ Official Hold Map</button>
+                <button id="btn-view-chalk" class="view-btn" data-view="chalk" onclick="setBoardView('chalk')">⬛ Dark Chalkboard</button>
+              </div>
+
+              <h4 style="margin-top:0.75rem;">👁️ Hold Overlay &amp; Viewport Options</h4>
+              <div style="display:flex; gap:0.625rem; flex-wrap:wrap; margin-top:0.375rem;">
+                <button id="btn-toggle-unlit" class="btn-secondary-action" onclick="toggleShowAllHolds()">
+                  👁️ Show All Holds on Wall
+                </button>
+                <button id="btn-phone-preview" class="btn-secondary-action" onclick="togglePhonePreview()">
+                  📱 Toggle Phone UI Preview
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 2: 2-Way Tension App Sync -->
+            <div class="section-card">
+              <h3>🔗 2. Tension Board 2 Account &amp; Catalog Sync</h3>
+              <p class="muted-hint">Keep your logbook, circuits, draft climbs, and community Instagram beta Reels in sync.</p>
+              <div style="display:flex; flex-direction:column; gap:0.625rem; margin-top:0.375rem;">
+                <button id="btn-settings-connect-aurora" class="btn-primary-action" onclick="openAuroraSyncModal()">
+                  🔗 Connect / Manage Tension Board 2 Accounts
+                </button>
+                <button class="btn-secondary-action" onclick="triggerAuroraPullSync()">
+                  🔄 Sync Now (Push Local Logs &amp; Pull Latest from Tension)
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- MOBILE 6-TAB BOTTOM NAVIGATION BAR -->
+      <nav class="mobile-bottom-nav six-tabs">
+        <button class="mob-nav-btn active" data-mobtab="board" onclick="switchMobileTab('board')">
+          <span class="mob-icon">🧗</span>
+          <span class="mob-lbl">Wall</span>
+        </button>
+        <button class="mob-nav-btn" data-mobtab="climbs" onclick="switchMobileTab('climbs')">
+          <span class="mob-icon">🔍</span>
+          <span class="mob-lbl">Climbs</span>
+        </button>
+        <button class="mob-nav-btn" data-mobtab="compare" onclick="switchMobileTab('compare')">
+          <span class="mob-icon">🎬</span>
+          <span class="mob-lbl">Beta</span>
+        </button>
+        <button class="mob-nav-btn" data-mobtab="beta" onclick="switchMobileTab('beta')">
+          <span class="mob-icon">📤</span>
+          <span class="mob-lbl">Upload</span>
+        </button>
+        <button class="mob-nav-btn" data-mobtab="lists" onclick="switchMobileTab('lists')">
+          <span class="mob-icon">📋</span>
+          <span class="mob-lbl">Lists</span>
+        </button>
+        <button class="mob-nav-btn" data-mobtab="logbook" onclick="switchMobileTab('logbook')">
+          <span class="mob-icon">📓</span>
+          <span class="mob-lbl">Activity</span>
+        </button>
+      </nav>
+
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- FIRST-RUN & BOARD SWITCHER SETUP WIZARD MODAL (#modal-board-setup)   -->
+  <!-- ==================================================================== -->
+  <div id="modal-board-setup" class="modal-backdrop" style="display:none;" onclick="if(event.target===this && state.boardConfig.setup_complete) closeBoardSetupWizard()">
+    <div class="modal-card setup-wizard-card">
+      <div class="modal-hdr">
+        <div class="wizard-title-grp">
+          <div class="brand-logo" style="width:1.75rem; height:1.75rem; font-size:0.6875rem;">TB2</div>
+          <div>
+            <h3 style="margin:0;">Tension Board 2 Setup</h3>
+            <div class="muted-hint" style="font-size:0.6875rem;">Configure your board layout, size, angle &amp; optional account sync</div>
+          </div>
+        </div>
+        <button id="btn-close-setup-wizard" class="btn-xs-ghost" onclick="closeBoardSetupWizard()" style="display:none;">✕ Close</button>
+      </div>
+
+      <!-- Step Progress Indicator -->
+      <div class="wizard-stepper">
+        <button type="button" id="wiz-ind-1" class="wiz-step-pill active" onclick="setWizardStep(1)">
+          <span class="wiz-step-num">1</span> Your Tension Board 2
+        </button>
+        <span class="wiz-step-arrow">→</span>
+        <button type="button" id="wiz-ind-2" class="wiz-step-pill" onclick="setWizardStep(2)">
+          <span class="wiz-step-num">2</span> Connect Tension Account <span style="opacity:0.65;">(Optional)</span>
+        </button>
+      </div>
+
+      <!-- STEP 1: BOARD LAYOUT, SIZE & ANGLE -->
+      <div id="wizard-step-1" class="wizard-step-pane">
+        <div class="wiz-section">
+          <div class="wiz-section-lbl">1. Board Layout</div>
+          <div class="wiz-card-grid two-cols">
+            <button type="button" class="wiz-option-card active" data-layout="11" onclick="selectWizardLayout(11)">
+              <span class="woc-title">TB2 Spray</span>
+              <span class="woc-sub">Asymmetric spray layout · full hold density</span>
+            </button>
+            <button type="button" class="wiz-option-card" data-layout="10" onclick="selectWizardLayout(10)">
+              <span class="woc-title">TB2 Mirror</span>
+              <span class="woc-sub">Symmetrical mirrored hold layout</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="wiz-section">
+          <div class="wiz-section-lbl">2. Board Size (Height × Width)</div>
+          <div class="wiz-card-grid four-cols">
+            <button type="button" class="wiz-option-card active" data-size="9" onclick="selectWizardSize(9)">
+              <span class="woc-title">10×8</span>
+              <span class="woc-sub">10ft × 8ft</span>
+            </button>
+            <button type="button" class="wiz-option-card" data-size="8" onclick="selectWizardSize(8)">
+              <span class="woc-title">12×8</span>
+              <span class="woc-sub">12ft × 8ft</span>
+            </button>
+            <button type="button" class="wiz-option-card" data-size="7" onclick="selectWizardSize(7)">
+              <span class="woc-title">10×12</span>
+              <span class="woc-sub">10ft × 12ft</span>
+            </button>
+            <button type="button" class="wiz-option-card" data-size="6" onclick="selectWizardSize(6)">
+              <span class="woc-title">12×12</span>
+              <span class="woc-sub">12ft × 12ft</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="wiz-section">
+          <div class="wiz-angle-hdr">
+            <div class="wiz-section-lbl">3. Wall Angle</div>
+            <div class="wiz-adj-toggle" role="group" aria-label="Wall angle mode">
+              <button type="button" id="wiz-mode-fixed" class="wiz-adj-btn active" onclick="selectWizardAdjustable(false)">🔒 Fixed Angle</button>
+              <button type="button" id="wiz-mode-adjustable" class="wiz-adj-btn" onclick="selectWizardAdjustable(true)">⚙️ Adjustable Wall</button>
+            </div>
+          </div>
+          <div id="wiz-angle-pills" class="wiz-angle-pills"></div>
+          <div id="wiz-angle-hint" class="muted-hint" style="margin-top:0.25rem; font-size:0.6875rem;">
+            Fixed angle locks the catalog to your wall angle and surfaces neighboring ±5° climbs with angle-adjusted grades.
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:0.25rem;">
+          <button type="button" id="btn-wiz-quick-save" class="btn-secondary-action" onclick="completeBoardSetup(false)" style="display:none;">
+            ✓ Save Board Changes
+          </button>
+          <button type="button" class="btn-primary-action" style="flex:0 0 auto;" onclick="setWizardStep(2)">
+            Next: Connect Tension Account →
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: OPTIONAL TENSION ACCOUNT LOGIN -->
+      <div id="wizard-step-2" class="wizard-step-pane" style="display:none;">
+        <div id="wiz-selected-summary" class="wiz-selected-summary">
+          Selected Board: <strong>10×8 Spray @ 45°</strong> · Fixed Angle
+        </div>
+
+        <div class="wiz-security-callout">
+          <span class="wsc-icon">🔒</span>
+          <div>
+            Your password goes directly from your computer to <code>tensionboardapp2.com</code> to sign in and is never saved. Only a local session token is stored on your machine.
+          </div>
+        </div>
+
+        <div class="modal-form">
+          <label>Tension Board 2 Username
+            <input id="wiz-login-user" type="text" placeholder="Your Tension username (optional)" autocomplete="off" data-lpignore="true" />
+          </label>
+          <label>Tension Board 2 Password
+            <input id="wiz-login-pass" type="text" class="masked-password-input" placeholder="Enter your Tension app password..." autocomplete="off" data-lpignore="true" />
+          </label>
+          <div id="wizard-status-msg" class="aurora-status-msg"></div>
+        </div>
+
+        <div class="wizard-step2-actions">
+          <button type="button" class="btn-xs-ghost" onclick="setWizardStep(1)">← Back</button>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+            <button type="button" id="btn-wiz-skip" class="btn-secondary-action" onclick="completeBoardSetup(false)">
+              Skip Login &amp; Start Climbing →
+            </button>
+            <button type="button" id="btn-wiz-connect" class="btn-primary-action" style="flex:0 0 auto;" onclick="completeBoardSetup(true)">
+              🔗 Save Board &amp; Connect Tension
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- 2-WAY TENSION BOARD APP SYNC MODAL                                   -->
+  <!-- ==================================================================== -->
+  <div id="modal-aurora-sync" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) closeAuroraSyncModal()">
+    <div class="modal-card">
+      <div class="modal-hdr">
+        <h3>🔗 2-Way Official Tension App Sync</h3>
+        <button class="btn-xs-ghost" onclick="closeAuroraSyncModal()">✕ Close</button>
+      </div>
+      <p class="muted-hint">
+        Connect your Tension Board 2 account (or a climbing partner's account) directly to <code>https://tensionboardapp2.com</code>. Your password is never stored — only a local session token is kept on your machine.
+      </p>
+      <div class="sync-capabilities-grid">
+        <div class="sync-cap-box">
+          <strong>⬇️ Read from Tension App (Pull)</strong>
+          <ul>
+            <li>Personal <b>Ascents (Sends)</b>, ratings &amp; comments</li>
+            <li>Projecting <b>Bids (Attempt Counts)</b> by date &amp; angle</li>
+            <li>Custom <b>Circuits / Lists</b> &amp; <b>Draft Climbs</b></li>
+            <li>Follower <b>Activity Notifications</b></li>
+          </ul>
+        </div>
+        <div class="sync-cap-box">
+          <strong>⬆️ Send to Tension App (Push)</strong>
+          <ul>
+            <li>Logging a <b>Send</b> here pushes <code>POST /ascents/save</code></li>
+            <li>Logging <b>Attempts</b> here pushes <code>POST /bids/save</code></li>
+            <li>Saving a <b>Draft Climb</b> pushes <code>POST /climbs/save</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div id="connected-accounts-list" class="connected-accounts-list"></div>
+
+      <div class="modal-form">
+        <label>Tension Board 2 Username
+          <input id="aurora-login-user" type="text" placeholder="Enter Tension username" autocomplete="off" data-lpignore="true" />
+        </label>
+        <label>Tension Board 2 Password
+          <input id="aurora-login-pass" type="text" class="masked-password-input" placeholder="Enter your Tension app password..." autocomplete="off" data-lpignore="true" />
+        </label>
+        <div id="aurora-sync-status-msg" class="aurora-status-msg"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary-action" onclick="closeAuroraSyncModal()">Cancel</button>
+          <button id="btn-submit-aurora-login" class="btn-primary-action" onclick="submitAuroraLogin()">
+            🔄 Connect &amp; Sync Tension Profile
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-banner" class="toast-banner"></div>
+  <script src="app.js?v=29"></script>
+</body>
+</html>

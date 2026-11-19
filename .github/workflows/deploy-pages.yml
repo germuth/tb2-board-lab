@@ -1,0 +1,81 @@
+name: Deploy Static Demo to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Static Demo Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build static demo site & 10x8 Spray @ 45° catalog
+        run: |
+          python3 - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          import catalog_engine
+
+          site = Path("_site")
+          if site.exists():
+              shutil.rmtree(site)
+          shutil.copytree("static", site)
+          (site / ".nojekyll").write_text("")
+
+          cache_dir = Path("_pages_cache")
+          cache_dir.mkdir(exist_ok=True)
+          catalog = catalog_engine.build_board_catalog(
+              layout_id=11,
+              size_id=9,
+              target_angle=45,
+              holds_catalog_path=str(Path("static/data/holds_all_tb2.json")),
+              cache_dir=str(cache_dir),
+          )
+          (site / "demo_catalog.json").write_text(
+              json.dumps(catalog, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          print(
+              f"Built _site/demo_catalog.json ({(site / 'demo_catalog.json').stat().st_size:,} bytes, "
+              f"{len(catalog.get('climbs', []))} climbs)"
+          )
+          PY
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

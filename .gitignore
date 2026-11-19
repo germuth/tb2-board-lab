@@ -1,0 +1,22 @@
+# Local user data, credentials, videos, and downloaded catalogs (never commit!)
+user_data/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# PyInstaller build outputs
+dist/
+build/
+*.spec
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local untracked archive of experimental features
+local_archive/
